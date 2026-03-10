@@ -177,7 +177,25 @@ async def _non_stream_response(
 ) -> Response:
     async with httpx.AsyncClient(timeout=120) as client:
         r = await client.post(url, headers=headers, json=body)
-        response_body = r.json()
+        
+        # Handle non-JSON responses (e.g., Cloudflare errors)
+        try:
+            response_body = r.json()
+        except json.JSONDecodeError:
+            return Response(
+                content=json.dumps({"error": {"message": f"Upstream error {r.status_code}: {r.text[:200]}", "type": "upstream_error"}}),
+                status_code=502,
+                media_type="application/json",
+            )
+        
+        # Handle upstream errors
+        if r.status_code >= 400:
+            return Response(
+                content=json.dumps(response_body),
+                status_code=r.status_code,
+                media_type="application/json",
+            )
+        
         # Inject routing metadata into response
         if "choices" in response_body:
             response_body["_freerouter"] = {

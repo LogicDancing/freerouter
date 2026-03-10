@@ -5,7 +5,6 @@ Each platform's Top-5 models per task domain.
 """
 from freerouter.core.models import Platform, PlatformModel, TaskType
 
-# ─── NVIDIA Build ───────────────────────────────────────────────────────────
 NVIDIA_BUILD = Platform(
     name="nvidia_build",
     display_name="NVIDIA Build",
@@ -15,34 +14,29 @@ NVIDIA_BUILD = Platform(
     tags=["most-models", "flagship-quality", "1M-context"],
     models=[
         # Coding
-        PlatformModel("nvidia/qwen3-coder-480b-a35b-instruct", 262144, 1,
-                      [TaskType.CODE_GENERATION], "Global #1 coding model"),
-        PlatformModel("nvidia/devstral-2-123b", 262144, 2,
-                      [TaskType.CODE_GENERATION], "Best open-source coding"),
-        PlatformModel("nvidia/llama-3.1-405b-instruct", 131072, 3,
-                      [TaskType.CODE_GENERATION, TaskType.GENERAL], "Flagship base"),
-        PlatformModel("nvidia/deepseek-coder-v2-instruct", 131072, 4,
-                      [TaskType.CODE_GENERATION], "Algorithm specialist"),
-        PlatformModel("nvidia/codellama-70b-instruct", 102400, 5,
-                      [TaskType.CODE_COMPLETION], "Fast completion"),
+        PlatformModel("qwen/qwen3-coder-480b-a35b-instruct", 262144, 1,
+            [TaskType.CODE_GENERATION], "Global #1 coding model"),
+        PlatformModel("meta/llama-3.1-70b-instruct", 131072, 2,
+            [TaskType.CODE_GENERATION, TaskType.GENERAL], "Flagship 70B"),
+        PlatformModel("qwen/qwen2.5-coder-32b-instruct", 131072, 3,
+            [TaskType.CODE_GENERATION], "Qwen Coder 32B"),
+        PlatformModel("meta/llama-3.1-8b-instruct", 131072, 4,
+            [TaskType.CODE_COMPLETION, TaskType.GENERAL], "Fast 8B"),
         # Reasoning
-        PlatformModel("nvidia/kimi-k2-thinking", 262144, 1,
-                      [TaskType.REASONING], "INT4 quantized reasoning"),
-        PlatformModel("nvidia/deepseek-r1-32b", 65536, 2,
-                      [TaskType.REASONING], "Distilled reasoning"),
-        PlatformModel("nvidia/qwen3.5-397b-a17b", 200000, 3,
-                      [TaskType.REASONING, TaskType.GENERAL], "Flagship general"),
+        PlatformModel("nvidia/llama-3.1-nemotron-70b-instruct", 131072, 1,
+            [TaskType.REASONING], "Nemotron 70B"),
+        PlatformModel("qwen/qwq-32b", 131072, 2,
+            [TaskType.REASONING], "QwQ reasoning"),
+        PlatformModel("qwen/qwen3.5-397b-a17b", 200000, 3,
+            [TaskType.REASONING, TaskType.GENERAL], "Flagship general"),
         # Long context
         PlatformModel("nvidia/llama-3.1-nemotron-nano-8b-v1", 1048576, 1,
-                      [TaskType.LONG_CONTEXT], "1M context — world record"),
+            [TaskType.LONG_CONTEXT], "1M context — world record"),
         # General / Agentic
-        PlatformModel("nvidia/glm5", 200000, 2,
-                      [TaskType.AGENTIC, TaskType.GENERAL], "GLM-5 flagship"),
-        PlatformModel("nvidia/kimi-k2.5", 200000, 3,
-                      [TaskType.AGENTIC], "Multimodal reasoning"),
-        # Lightweight
-        PlatformModel("meta/llama-3.1-8b-instruct", 131072, 5,
-                      [TaskType.CODE_COMPLETION, TaskType.GENERAL], "Fast probe model"),
+        PlatformModel("z-ai/glm5", 200000, 1,
+            [TaskType.AGENTIC, TaskType.GENERAL], "GLM-5 flagship"),
+        PlatformModel("meta/llama-3.1-405b-instruct", 131072, 2,
+            [TaskType.GENERAL], "Llama 405B"),
     ]
 )
 
@@ -108,33 +102,22 @@ CEREBRAS = Platform(
     ]
 )
 
-# ─── SambaNova ───────────────────────────────────────────────────────────────
 SAMBANOVA = Platform(
     name="sambanova",
     display_name="SambaNova",
     api_base="https://api.sambanova.ai/v1",
-    probe_model="Meta-Llama-3.2-3B-Instruct",
+    probe_model="DeepSeek-V3.1",
     rpm_limit=10,
-    tags=["405B-fullprecision", "rdu-chip", "quality-backup"],
+    tags=["deepseek-v3", "rdu-chip", "quality-backup"],
     models=[
-        PlatformModel("Meta-Llama-3.1-405B-Instruct", 131072, 1,
-                      [TaskType.CODE_GENERATION, TaskType.REASONING],
-                      "Full-precision 405B · 132 t/s"),
-        PlatformModel("DeepSeek-V3-0324", 131072, 2,
-                      [TaskType.CODE_GENERATION, TaskType.GENERAL],
-                      "DeepSeek V3 latest"),
+        PlatformModel("DeepSeek-V3.1", 131072, 1,
+            [TaskType.CODE_GENERATION, TaskType.GENERAL], "DeepSeek V3.1 latest"),
+        PlatformModel("DeepSeek-R1-0528", 131072, 2,
+            [TaskType.REASONING], "DeepSeek R1 reasoning"),
         PlatformModel("Meta-Llama-3.3-70B-Instruct", 131072, 3,
-                      [TaskType.GENERAL],
-                      "70B quality backup"),
-        PlatformModel("Qwen2.5-72B-Instruct", 131072, 4,
-                      [TaskType.GENERAL],
-                      "Chinese-optimized 72B"),
-        PlatformModel("Qwen2.5-Coder-32B-Instruct", 131072, 5,
-                      [TaskType.CODE_GENERATION],
-                      "Coder 32B"),
-        PlatformModel("Meta-Llama-3.2-3B-Instruct", 131072, 6,
-                      [TaskType.GENERAL],
-                      "Tiny probe model"),
+            [TaskType.GENERAL], "Llama 3.3 70B"),
+        PlatformModel("Qwen3-32B", 131072, 4,
+            [TaskType.CODE_GENERATION], "Qwen3 32B"),
     ]
 )
 

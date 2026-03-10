@@ -96,37 +96,36 @@ def detect_task_type(messages: list[dict], estimated_tokens: int) -> TaskType:
 
 ROUTING_TABLE: dict[TaskType, list[str]] = {
     TaskType.CODE_COMPLETION: [
-        "cerebras",      # 2500 t/s — best for fast completions
+        "nvidia_build",  # Fast and reliable
         "groq",          # 300 t/s — excellent, 14K req/day
-        "nvidia_build",  # quality fallback
+        "cerebras",
         "sambanova",
     ],
     TaskType.CODE_GENERATION: [
         "nvidia_build",  # Qwen3 Coder 480B — world #1
-        "sambanova",     # 405B full precision backup
-        "groq",          # kimi-k2-instruct
+        "groq",
         "cerebras",
+        "sambanova",
     ],
     TaskType.AGENTIC: [
-        "cerebras",      # 1M tokens/day — best for multi-step
+        "nvidia_build",  # Reliable, good context
         "groq",          # fast per-step
-        "nvidia_build",
+        "cerebras",
         "sambanova",
     ],
     TaskType.REASONING: [
         "nvidia_build",  # kimi-k2-thinking, deepseek-r1
-        "groq",          # qwq-32b, r1-distill
-        "sambanova",     # 405B full precision
-        "cerebras",      # r1-distill
+        "groq",
+        "sambanova",
+        "cerebras",
     ],
     TaskType.LONG_CONTEXT: [
         "nvidia_build",  # only platform with 1M context
-        # Others don't support >128K; fall through to error with clear message
     ],
     TaskType.GENERAL: [
+        "nvidia_build",  # Prioritize working platforms
         "groq",
         "cerebras",
-        "nvidia_build",
         "sambanova",
     ],
 }
