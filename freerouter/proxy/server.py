@@ -36,9 +36,7 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
     @app.on_event("startup")
     async def startup():
         await store.init()
-        # Initial probe so first request has data
         await prober.probe_now()
-        # Start background probe loop
         prober.start_background()
         log.info("FreeRouter started on %s:%s", config.host, config.port)
 
@@ -54,24 +52,24 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
         results = prober.results
         available_keys = config.api_keys.available_platforms()
         
-        # Build platform status HTML
         platform_rows = ""
         for platform in ALL_PLATFORMS:
             result = results.get(platform.name)
             has_key = platform.name in available_keys
             
             if not has_key:
-                status_badge = '<span style="color:#888">No API Key</span>'
+                status_badge = '<span style="color:#888">未配置密钥</span>'
                 ttft = "-"
             elif result and result.status.value == "ok":
                 color = "#22c55e" if result.ttft_ms < 1000 else "#eab308"
-                status_badge = f'<span style="color:{color}">Available</span>'
+                status_badge = f'<span style="color:{color}">✓ 可用</span>'
                 ttft = f"{result.ttft_ms:.0f}ms"
             elif result and result.status.value == "rate_limited":
-                status_badge = '<span style="color:#f97316">Rate Limited</span>'
+                status_badge = '<span style="color:#f97316">⚠ 限流中</span>'
                 ttft = "-"
             else:
-                status_badge = f'<span style="color:#ef4444">{result.error[:30] if result and result.error else "Error"}</span>'
+                error_msg = result.error[:20] if result and result.error else "错误"
+                status_badge = f'<span style="color:#ef4444">✗ {error_msg}</span>'
                 ttft = "-"
             
             platform_rows += f"""
@@ -82,27 +80,34 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
                 <td style="color:#666;font-size:12px">{', '.join(platform.tags)}</td>
             </tr>"""
         
-        # Build model list HTML
         model_rows = ""
         for platform in ALL_PLATFORMS:
             if platform.name not in available_keys:
                 continue
             model_rows += f"<tr><td colspan='4' style='background:#f5f5f5;padding:8px'><strong>{platform.display_name}</strong></td></tr>"
             for model in platform.models[:5]:
-                task_types = ', '.join(t.value for t in model.task_types)
+                task_map = {
+                    "code_completion": "代码补全",
+                    "code_generation": "代码生成",
+                    "agentic": "智能体",
+                    "reasoning": "推理",
+                    "long_context": "长文本",
+                    "general": "通用"
+                }
+                task_types = ', '.join(task_map.get(t.value, t.value) for t in model.task_types)
                 model_rows += f"""
                 <tr>
                     <td style="padding-left:20px;font-family:monospace;font-size:12px">{model.model_id}</td>
-                    <td>{model.context_window:,}</td>
+                    <td>{model.context_window:,} tokens</td>
                     <td>{task_types}</td>
                     <td style="color:#666">{model.description}</td>
                 </tr>"""
         
         html = f"""
         <!DOCTYPE html>
-        <html>
+        <html lang="zh-CN">
         <head>
-            <title>FreeRouter — Free LLM Forever</title>
+            <title>FreeRouter — 永久免费的 LLM 路由</title>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
@@ -115,30 +120,52 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
                 .endpoint {{ background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0; }}
                 code {{ background: #1f2937; color: #22c55e; padding: 2px 8px; border-radius: 4px; font-family: monospace; }}
                 .refresh {{ float: right; margin-top: -40px; }}
+                .stats {{ display: flex; gap: 20px; margin: 20px 0; }}
+                .stat-card {{ background: #f9fafb; padding: 15px 20px; border-radius: 8px; flex: 1; }}
+                .stat-card h3 {{ margin: 0 0 5px 0; color: #666; font-size: 14px; }}
+                .stat-card p {{ margin: 0; font-size: 24px; font-weight: bold; color: #22c55e; }}
             </style>
         </head>
         <body>
+            <a href="/" class="refresh" style="text-decoration:none;padding:8px 16px;background:#22c55e;color:white;border-radius:6px">刷新</a>
+            
             <h1>🚀 FreeRouter v0.1.0</h1>
-            <p style="color:#666">Free LLM Forever — auto-route across NVIDIA Build, Groq, Cerebras & SambaNova</p>
+            <p style="color:#666">永久免费的 LLM 路由 — 自动选择 NVIDIA Build、Groq、Cerebras、SambaNova 中最快的平台</p>
             
-            <a href="/" class="refresh" style="text-decoration:none;padding:8px 16px;background:#22c55e;color:white;border-radius:6px">Refresh</a>
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>已配置平台</h3>
+                    <p>{len(available_keys)}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>可用模型</h3>
+                    <p>200+</p>
+                </div>
+                <div class="stat-card">
+                    <h3>路由策略</h3>
+                    <p>自动</p>
+                </div>
+            </div>
             
-            <h2>📊 Platform Status</h2>
+            <h2>📊 平台状态</h2>
             <table>
-                <tr><th>Platform</th><th>Status</th><th>TTFT</th><th>Tags</th></tr>
+                <tr><th>平台</th><th>状态</th><th>延迟</th><th>标签</th></tr>
                 {platform_rows}
             </table>
             
-            <h2>🤖 Available Models</h2>
+            <h2>🤖 可用模型</h2>
             <table>
-                <tr><th>Model</th><th>Context</th><th>Task Types</th><th>Notes</th></tr>
+                <tr><th>模型</th><th>上下文</th><th>任务类型</th><th>说明</th></tr>
                 {model_rows}
             </table>
             
             <div class="endpoint">
-                <h3 style="margin-top:0">📡 API Endpoint</h3>
+                <h3 style="margin-top:0">📡 API 端点</h3>
                 <p><code>POST http://{config.host}:{config.port}/v1/chat/completions</code></p>
-                <p style="color:#666;font-size:14px">Use <code>model: "auto"</code> to let FreeRouter choose the best platform, or specify <code>model: "platform/model-id"</code> to override.</p>
+                <p style="color:#666;font-size:14px">
+                    使用 <code>model: "auto"</code> 让 FreeRouter 自动选择最优平台，<br>
+                    或指定 <code>model: "平台/模型ID"</code> 强制使用特定模型。
+                </p>
             </div>
             
             <p style="color:#999;text-align:center;margin-top:40px">Powered by FreeRouter • <a href="https://github.com/LogicDancing/freerouter">GitHub</a></p>
@@ -146,8 +173,6 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
         </html>
         """
         return Response(content=html, media_type="text/html")
-    
-    # ── Health / status endpoints ────────────────────────────────────────────
 
     @app.get("/health")
     async def health():
@@ -167,7 +192,6 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
             }
             for name, r in results.items()
         }
-    # ── OpenAI-compatible chat completions ───────────────────────────────────
 
     @app.post("/v1/chat/completions")
     async def chat_completions(request: Request):
@@ -175,14 +199,12 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
         messages = body.get("messages", [])
         stream = body.get("stream", False)
 
-        # Rough token estimate (4 chars ≈ 1 token)
         raw_text = " ".join(
             m.get("content", "") if isinstance(m.get("content"), str) else ""
             for m in messages
         )
         estimated_tokens = len(raw_text) // 4
 
-        # Parse optional override from model field: "platform/model-id"
         model_field: str = body.get("model", "auto")
         user_platform: Optional[str] = None
         user_model: Optional[str] = None
@@ -206,7 +228,7 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
             )
 
         log.info(
-            "→ %s/%s  [%s]  %.0fms  task=%s",
+            "→ %s/%s [%s] %.0fms task=%s",
             decision.selected_platform,
             decision.selected_model,
             decision.reason,
@@ -214,7 +236,6 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
             decision.task_type.value,
         )
 
-        # Build forwarded request body
         platform = PLATFORM_MAP[decision.selected_platform]
         api_keys = config.api_keys.as_dict()
         api_key = api_keys.get(decision.selected_platform, "")
@@ -224,7 +245,6 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            # Attach routing metadata for transparency
             "X-FreeRouter-Platform": decision.selected_platform,
             "X-FreeRouter-Model": decision.selected_model,
             "X-FreeRouter-Task": decision.task_type.value,
@@ -262,7 +282,6 @@ async def _stream_response(
                 yield _sse_error(r.status_code, error_body.decode())
                 return
 
-            # Inject a comment with routing info as first SSE event
             yield f": routed-via={decision.selected_platform}/{decision.selected_model}\n\n".encode()
 
             async for chunk in r.aiter_bytes(chunk_size=512):
@@ -277,8 +296,7 @@ async def _non_stream_response(
 ) -> Response:
     async with httpx.AsyncClient(timeout=120) as client:
         r = await client.post(url, headers=headers, json=body)
-        
-        # Handle non-JSON responses (e.g., Cloudflare errors)
+
         try:
             response_body = r.json()
         except json.JSONDecodeError:
@@ -287,16 +305,14 @@ async def _non_stream_response(
                 status_code=502,
                 media_type="application/json",
             )
-        
-        # Handle upstream errors
+
         if r.status_code >= 400:
             return Response(
                 content=json.dumps(response_body),
                 status_code=r.status_code,
                 media_type="application/json",
             )
-        
-        # Inject routing metadata into response
+
         if "choices" in response_body:
             response_body["_freerouter"] = {
                 "platform": decision.selected_platform,
