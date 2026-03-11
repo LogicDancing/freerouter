@@ -96,53 +96,52 @@ def detect_task_type(messages: list[dict], estimated_tokens: int) -> TaskType:
 
 ROUTING_TABLE: dict[TaskType, list[str]] = {
     TaskType.CODE_COMPLETION: [
-        "nvidia_build",  # Fast and reliable
-        "groq",          # 300 t/s — excellent, 14K req/day
-        "cerebras",
+        "groq", # 300 t/s — fastest, 14K req/day
+        "cerebras", # 2500 t/s, 1M tokens/day
+        "nvidia_build", # Reliable fallback
         "sambanova",
+        "mistral", # Codestral for code
     ],
     TaskType.CODE_GENERATION: [
-        "nvidia_build",  # Qwen3 Coder 480B — world #1
+        "nvidia_build", # Qwen3 Coder 480B — world #1
+        "mistral", # Codestral, Devstral
         "groq",
         "cerebras",
         "sambanova",
     ],
     TaskType.AGENTIC: [
-        "nvidia_build",  # Reliable, good context
-        "groq",          # fast per-step
-        "cerebras",
+        "cerebras", # 1M tokens/day, fast
+        "nvidia_build", # Reliable, good context
+        "groq", # fast per-step
         "sambanova",
+        "mistral", # Devstral for agents
     ],
     TaskType.REASONING: [
-        "nvidia_build",  # kimi-k2-thinking, deepseek-r1
-        "groq",
+        "nvidia_build", # DeepSeek R1, QwQ-32b
+        "mistral", # Magistral models
+        "groq", # QwQ, DeepSeek R1 Distill
         "sambanova",
         "cerebras",
     ],
     TaskType.LONG_CONTEXT: [
-        "nvidia_build",  # only platform with 1M context
+        "nvidia_build", # Only platform with 1M+ context
     ],
     TaskType.GENERAL: [
-        "nvidia_build",  # Prioritize working platforms
-        "groq",
-        "cerebras",
-        "sambanova",
+        "nvidia_build", # Most models
+        "groq", # Fastest
+        "cerebras", # Good for agentic
+        "sambanova", # High free quota
+        "mistral", # Quality models
     ],
 }
 
 
-def _best_model_for_task(platform: Platform, task: TaskType) -> Optional[str]:
+def _best_model_for_task(platform: Platform, task: TaskType, avoid_rate_limited: bool = True) -> Optional[str]:
     """Return the highest-priority model ID for this task on this platform."""
-    candidates = [
-        m for m in platform.models
-        if task in m.task_types
-    ]
-    if not candidates:
-        # Fall back to any model on this platform
-        candidates = platform.models
-    if not candidates:
-        return None
-    return sorted(candidates, key=lambda m: m.priority)[0].model_id
+    from freerouter.core.model_selector import select_best_model
+    
+    choice = select_best_model(platform, task, avoid_rate_limited=avoid_rate_limited)
+    return choice.model_id if choice else None
 
 
 class Router:

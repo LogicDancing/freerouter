@@ -29,13 +29,13 @@ class ProbeStore:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS probes (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    platform    TEXT NOT NULL,
-                    model_id    TEXT NOT NULL,
-                    ttft_ms     REAL NOT NULL,
-                    status      TEXT NOT NULL,
-                    error       TEXT,
-                    ts          REAL NOT NULL
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    platform TEXT NOT NULL,
+                    model_id TEXT NOT NULL,
+                    ttft_ms REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    error TEXT,
+                    ts REAL NOT NULL
                 )
             """)
             await db.execute(
@@ -105,6 +105,12 @@ async def _probe_one(
             timeout=timeout,
         ) as response:
             if response.status_code == 429:
+                # Mark the probe model as rate limited
+                try:
+                    from freerouter.core.model_selector import mark_rate_limited
+                    mark_rate_limited(platform.name, platform.probe_model)
+                except ImportError:
+                    pass
                 return ProbeResult(
                     platform_name=platform.name,
                     model_id=platform.probe_model,
@@ -128,14 +134,14 @@ async def _probe_one(
                     ttft_ms=ttft_ms,
                     status=ProbeStatus.OK,
                 )
-        # Empty response
-        return ProbeResult(
-            platform_name=platform.name,
-            model_id=platform.probe_model,
-            ttft_ms=9999,
-            status=ProbeStatus.ERROR,
-            error="Empty response",
-        )
+            # Empty response
+            return ProbeResult(
+                platform_name=platform.name,
+                model_id=platform.probe_model,
+                ttft_ms=9999,
+                status=ProbeStatus.ERROR,
+                error="Empty response",
+            )
     except httpx.TimeoutException:
         return ProbeResult(
             platform_name=platform.name,
@@ -187,20 +193,20 @@ class Prober:
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        for result in results:
-            if isinstance(result, Exception):
-                log.error("Probe exception: %s", result)
-                continue
-            self._results[result.platform_name] = result
-            await self.store.save(result)
-            status_icon = "✓" if result.status == ProbeStatus.OK else "✗"
-            log.debug(
-                "%s %s  %.0fms  [%s]",
-                status_icon, result.platform_name,
-                result.ttft_ms, result.status.value
-            )
+            for result in results:
+                if isinstance(result, Exception):
+                    log.error("Probe exception: %s", result)
+                    continue
+                self._results[result.platform_name] = result
+                await self.store.save(result)
+                status_icon = "OK" if result.status == ProbeStatus.OK else "FAIL"
+                log.debug(
+                    "%s %s %.0fms [%s]",
+                    status_icon, result.platform_name,
+                    result.ttft_ms, result.status.value
+                )
 
-        return self._results
+            return self._results
 
     async def start_loop(self) -> None:
         """Run probe loop forever at configured interval."""

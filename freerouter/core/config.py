@@ -15,9 +15,9 @@ DEFAULT_CONFIG_PATH = Path.home() / ".config" / "freerouter" / "freerouter.yaml"
 
 @dataclass
 class RoutingConfig:
-    strategy: str = "auto"          # auto | speed | quality | quota
-    probe_interval: int = 30        # seconds
-    ttft_threshold_ms: float = 3000 # ms; above = congested
+    strategy: str = "auto"  # auto | speed | quality | quota
+    probe_interval: int = 30  # seconds
+    ttft_threshold_ms: float = 3000  # ms; above = congested
     fallback_to_openrouter: bool = True
     max_retries: int = 3
 
@@ -40,6 +40,7 @@ class ApiKeys:
     groq: Optional[str] = None
     cerebras: Optional[str] = None
     sambanova: Optional[str] = None
+    mistral: Optional[str] = None
     openrouter: Optional[str] = None
 
     def as_dict(self) -> dict[str, Optional[str]]:
@@ -48,6 +49,7 @@ class ApiKeys:
             "groq": self.groq,
             "cerebras": self.cerebras,
             "sambanova": self.sambanova,
+            "mistral": self.mistral,
             "openrouter": self.openrouter,
         }
 
@@ -58,6 +60,7 @@ class ApiKeys:
             "groq": self.groq,
             "cerebras": self.cerebras,
             "sambanova": self.sambanova,
+            "mistral": self.mistral,
         }
         return [name for name, key in mapping.items() if key]
 
@@ -83,6 +86,8 @@ def _load_api_keys_from_env(keys: ApiKeys) -> ApiKeys:
         keys.cerebras = v
     if v := os.getenv("SAMBANOVA_API_KEY"):
         keys.sambanova = v
+    if v := os.getenv("MISTRAL_API_KEY"):
+        keys.mistral = v
     if v := os.getenv("OPENROUTER_API_KEY"):
         keys.openrouter = v
     return keys
@@ -104,6 +109,7 @@ def load_config(path: Optional[Path] = None) -> FreeRouterConfig:
                 groq=keys_data.get("groq"),
                 cerebras=keys_data.get("cerebras"),
                 sambanova=keys_data.get("sambanova"),
+                mistral=keys_data.get("mistral"),
                 openrouter=keys_data.get("openrouter"),
             )
 
@@ -146,19 +152,20 @@ def save_default_config(path: Path = DEFAULT_CONFIG_PATH) -> None:
 # Free LLM Forever — https://github.com/yourname/freerouter
 #
 # API keys can also be set via environment variables:
-#   NVIDIA_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY,
-#   SAMBANOVA_API_KEY, OPENROUTER_API_KEY
+# NVIDIA_API_KEY, GROQ_API_KEY, CEREBRAS_API_KEY,
+# SAMBANOVA_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY
 
 api_keys:
-  nvidia_build: ""   # https://build.nvidia.com  (no credit card)
-  groq: ""           # https://console.groq.com  (no credit card)
-  cerebras: ""       # https://cloud.cerebras.ai (no credit card)
-  sambanova: ""      # https://cloud.sambanova.ai(no credit card)
-  openrouter: ""     # https://openrouter.ai     (fallback, free models)
+  nvidia_build: "" # https://build.nvidia.com (no credit card)
+  groq: "" # https://console.groq.com (no credit card)
+  cerebras: "" # https://cloud.cerebras.ai (no credit card)
+  sambanova: "" # https://cloud.sambanova.ai (no credit card)
+  mistral: "" # https://console.mistral.ai (free experiment tier)
+  openrouter: "" # https://openrouter.ai (fallback, free models)
 
 routing:
-  strategy: auto          # auto | speed | quality | quota
-  probe_interval: 30      # probe all platforms every N seconds
+  strategy: auto # auto | speed | quality | quota
+  probe_interval: 30 # probe all platforms every N seconds
   ttft_threshold_ms: 3000 # mark platform congested if TTFT > this
   fallback_to_openrouter: true
   max_retries: 3

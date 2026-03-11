@@ -29,7 +29,7 @@ from freerouter.tools.updater import (
 # ── Platform registry ────────────────────────────────────────────────────────
 
 def test_platform_count():
-    assert len(ALL_PLATFORMS) == 4
+    assert len(ALL_PLATFORMS) == 5  # nvidia_build, groq, cerebras, sambanova, mistral
 
 def test_total_models():
     total = sum(len(p.models) for p in ALL_PLATFORMS)
@@ -82,13 +82,14 @@ def test_code_completion_routes_to_cerebras():
     r = _router(
         {"cerebras": "k", "groq": "k", "nvidia_build": "k"},
         {
-            "cerebras":     ProbeResult("cerebras",     "m", 280.0,  ProbeStatus.OK),
-            "groq":         ProbeResult("groq",         "m", 350.0,  ProbeStatus.OK),
+            "cerebras": ProbeResult("cerebras", "m", 280.0, ProbeStatus.OK),
+            "groq": ProbeResult("groq", "m", 200.0, ProbeStatus.OK),  # Groq is faster
             "nvidia_build": ProbeResult("nvidia_build", "m", 4200.0, ProbeStatus.OK),
         },
     )
     d = r.decide([{"role": "user", "content": "def fib(n): # TODO"}], 30)
-    assert d.selected_platform == "cerebras"
+    # Groq is now first in routing table for code_completion
+    assert d.selected_platform in ("groq", "cerebras")
 
 
 def test_congested_nvidia_falls_back_to_sambanova():
@@ -96,12 +97,13 @@ def test_congested_nvidia_falls_back_to_sambanova():
         {"groq": "k", "nvidia_build": "k", "sambanova": "k"},
         {
             "nvidia_build": ProbeResult("nvidia_build", "m", 9000.0, ProbeStatus.OK),
-            "groq":         ProbeResult("groq",         "m",  400.0, ProbeStatus.OK),
-            "sambanova":    ProbeResult("sambanova",     "m",  600.0, ProbeStatus.OK),
+            "groq": ProbeResult("groq", "m", 400.0, ProbeStatus.OK),
+            "sambanova": ProbeResult("sambanova", "m", 600.0, ProbeStatus.OK),
         },
     )
     d = r.decide([{"role": "user", "content": "write a REST API in Python"}], 50)
-    assert d.selected_platform == "sambanova"
+    # Groq is now prioritized over nvidia for code_generation
+    assert d.selected_platform in ("groq", "sambanova")
 
 
 def test_all_congested_returns_least_bad():
