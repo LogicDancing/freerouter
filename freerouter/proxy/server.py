@@ -17,7 +17,8 @@ from freerouter.core.config import FreeRouterConfig
 from freerouter.core.models import RoutingDecision
 from freerouter.core.platforms import PLATFORM_MAP
 from freerouter.core.prober import Prober, ProbeStore
-from freerouter.core.router import Router
+from freerouter.core.smart_router import SmartRouter
+from freerouter.discovery import DiscoveryManager, DiscoveryConfig
 
 log = logging.getLogger("freerouter.proxy")
 
@@ -31,11 +32,23 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
 
     store = ProbeStore(config.db_path)
     prober = Prober(config, store)
-    router = Router(config, prober)
+
+    # Initialize discovery manager for dynamic model discovery
+    discovery_manager = DiscoveryManager(
+        api_keys=config.api_keys.as_dict(),
+        config=DiscoveryConfig()
+    )
+    router = SmartRouter(config, prober, discovery_manager=discovery_manager)
 
     @app.on_event("startup")
     async def startup():
         await store.init()
+        # Run dynamic model discovery
+        log.info("Discovering models from all platforms...")
+        await discovery_manager.discover_all()
+        model_count = len(discovery_manager.get_all_models())
+        log.info("Discovered %d models across all platforms", model_count)
+        # Start probing platforms
         await prober.probe_now()
         prober.start_background()
         log.info("FreeRouter started on %s:%s", config.host, config.port)
@@ -43,6 +56,7 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
     @app.on_event("shutdown")
     async def shutdown():
         prober.stop()
+        log.info("FreeRouter stopped")
 
     @app.get("/")
     async def dashboard():
@@ -81,6 +95,7 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
             </tr>"""
         
         model_rows = ""
+        model_count = len(discovery_manager.get_all_models())
         for platform in ALL_PLATFORMS:
             if platform.name not in available_keys:
                 continue
@@ -139,7 +154,7 @@ def create_app(config: FreeRouterConfig) -> FastAPI:
                 </div>
                 <div class="stat-card">
                     <h3>可用模型</h3>
-                    <p>200+</p>
+                    <p>{model_count}</p>
                 </div>
                 <div class="stat-card">
                     <h3>路由策略</h3>

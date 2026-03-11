@@ -97,7 +97,7 @@ def print_probe_summary(probe_results: dict[str, ProbeResult]) -> None:
 
 async def live_dashboard(prober: Prober, refresh_interval: float = 2.0) -> None:
     """Live-updating terminal dashboard."""
-    with Live(console=console, refresh_per_second=1, screen=False) as live:
+    with Live(console=console, refresh_per_second=1, screen=True) as live:
         while True:
             table = build_status_table(prober.results)
             footer = Text(
