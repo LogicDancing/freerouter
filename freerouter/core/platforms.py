@@ -14,29 +14,20 @@ NVIDIA_BUILD = Platform(
     tags=["most-models", "flagship-quality", "1M-context"],
     models=[
         # Coding
-        PlatformModel("qwen/qwen3-coder-480b-a35b-instruct", 262144, 1,
-            [TaskType.CODE_GENERATION], "Global #1 coding model"),
-        PlatformModel("meta/llama-3.1-70b-instruct", 131072, 2,
-            [TaskType.CODE_GENERATION, TaskType.GENERAL], "Flagship 70B"),
-        PlatformModel("qwen/qwen2.5-coder-32b-instruct", 131072, 3,
+        PlatformModel("meta/llama-3.1-8b-instruct", 131072, 1,
+            [TaskType.CODE_COMPLETION, TaskType.GENERAL, TaskType.CODE_GENERATION], "Fast 8B"),
+        PlatformModel("qwen/qwen2.5-coder-32b-instruct", 131072, 2,
             [TaskType.CODE_GENERATION], "Qwen Coder 32B"),
-        PlatformModel("meta/llama-3.1-8b-instruct", 131072, 4,
-            [TaskType.CODE_COMPLETION, TaskType.GENERAL], "Fast 8B"),
+        PlatformModel("meta/llama-3.1-70b-instruct", 131072, 3,
+            [TaskType.CODE_GENERATION, TaskType.GENERAL], "Llama 70B"),
         # Reasoning
-        PlatformModel("nvidia/llama-3.1-nemotron-70b-instruct", 131072, 1,
-            [TaskType.REASONING], "Nemotron 70B"),
-        PlatformModel("qwen/qwq-32b", 131072, 2,
+        PlatformModel("qwen/qwq-32b", 131072, 1,
             [TaskType.REASONING], "QwQ reasoning"),
-        PlatformModel("qwen/qwen3.5-397b-a17b", 200000, 3,
-            [TaskType.REASONING, TaskType.GENERAL], "Flagship general"),
+        PlatformModel("nvidia/llama-3.1-nemotron-70b-instruct", 131072, 2,
+            [TaskType.REASONING], "Nemotron 70B"),
         # Long context
         PlatformModel("nvidia/llama-3.1-nemotron-nano-8b-v1", 1048576, 1,
-            [TaskType.LONG_CONTEXT], "1M context — world record"),
-        # General / Agentic
-        PlatformModel("z-ai/glm5", 200000, 1,
-            [TaskType.AGENTIC, TaskType.GENERAL], "GLM-5 flagship"),
-        PlatformModel("meta/llama-3.1-405b-instruct", 131072, 2,
-            [TaskType.GENERAL], "Llama 405B"),
+            [TaskType.LONG_CONTEXT], "1M context"),
     ]
 )
 
