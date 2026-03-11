@@ -92,16 +92,16 @@ SAMBANOVA = Platform(
     name="sambanova",
     display_name="SambaNova",
     api_base="https://api.sambanova.ai/v1",
-    probe_model="Qwen3-32B",  # Use low-quota model for probing to preserve high-quota
+    probe_model="Meta-Llama-3.1-8B-Instruct",  # High quota (288K/day) - reliable
     rpm_limit=1440,
     tags=["free-tier", "rdu-chip", "288k-requests/day"],
     models=[
-        # High quota models (288K req/day) - use for actual requests
+        # High quota models (288K req/day)
         PlatformModel("Meta-Llama-3.1-8B-Instruct", 131072, 1, [TaskType.CODE_COMPLETION, TaskType.GENERAL], "288K req/day"),
         # Medium quota models (48K req/day)
         PlatformModel("Meta-Llama-3.3-70B-Instruct", 131072, 2, [TaskType.GENERAL, TaskType.CODE_GENERATION], "48K req/day"),
         PlatformModel("DeepSeek-R1-Distill-Llama-70B", 131072, 3, [TaskType.REASONING], "48K req/day"),
-        # Low quota models (12K req/day) - good for probing
+        # Low quota models (12K req/day)
         PlatformModel("Qwen3-32B", 131072, 4, [TaskType.CODE_GENERATION], "12K req/day"),
         PlatformModel("DeepSeek-V3.1", 131072, 5, [TaskType.CODE_GENERATION, TaskType.GENERAL], "12K req/day"),
         PlatformModel("DeepSeek-R1-0528", 131072, 6, [TaskType.REASONING], "12K req/day"),

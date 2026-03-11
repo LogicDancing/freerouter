@@ -105,7 +105,7 @@ async def _probe_one(
             timeout=timeout,
         ) as response:
             if response.status_code == 429:
-                # Mark the probe model as rate limited
+                # Mark rate limited
                 try:
                     from freerouter.core.model_selector import mark_rate_limited
                     mark_rate_limited(platform.name, platform.probe_model)
@@ -168,23 +168,52 @@ class Prober:
         self.store = store
         self._results: dict[str, ProbeResult] = {}
         self._task: Optional[asyncio.Task] = None
+        # Platform cooldown after rate limit (platform_name -> cooldown_until timestamp)
+        self._cooldowns: dict[str, float] = {}
 
     @property
     def results(self) -> dict[str, ProbeResult]:
         return self._results
 
+    def _is_in_cooldown(self, platform_name: str) -> bool:
+        """Check if platform is in rate limit cooldown."""
+        if platform_name not in self._cooldowns:
+            return False
+        if time.time() < self._cooldowns[platform_name]:
+            return True
+        # Cooldown expired
+        del self._cooldowns[platform_name]
+        return False
+
+    def _set_cooldown(self, platform_name: str, seconds: int = 120) -> None:
+        """Set cooldown for platform after rate limit."""
+        self._cooldowns[platform_name] = time.time() + seconds
+        log.info(f"Platform {platform_name} in cooldown for {seconds}s")
+
     async def probe_now(self) -> dict[str, ProbeResult]:
         """Probe all available platforms concurrently. Returns results dict."""
         api_keys = self.config.api_keys.as_dict()
-        platforms_to_probe = [
-            PLATFORM_MAP[name]
-            for name, key in api_keys.items()
-            if key and name in PLATFORM_MAP
-        ]
+        
+        # Filter platforms: must have key, be in PLATFORM_MAP, and not in cooldown
+        platforms_to_probe = []
+        for name, key in api_keys.items():
+            if key and name in PLATFORM_MAP:
+                if self._is_in_cooldown(name):
+                    log.debug(f"Skipping {name} (in cooldown)")
+                    # Keep old result if available
+                    if name not in self._results:
+                        self._results[name] = ProbeResult(
+                            platform_name=name,
+                            model_id="",
+                            ttft_ms=9999,
+                            status=ProbeStatus.RATE_LIMITED,
+                        )
+                    continue
+                platforms_to_probe.append(PLATFORM_MAP[name])
 
         if not platforms_to_probe:
-            log.warning("No API keys configured. Run 'freerouter init' to set up.")
-            return {}
+            log.warning("No API keys configured or all platforms in cooldown.")
+            return self._results
 
         async with httpx.AsyncClient() as client:
             tasks = [
@@ -197,8 +226,14 @@ class Prober:
                 if isinstance(result, Exception):
                     log.error("Probe exception: %s", result)
                     continue
+                
+                # Set cooldown if rate limited
+                if result.status == ProbeStatus.RATE_LIMITED:
+                    self._set_cooldown(result.platform_name)
+                
                 self._results[result.platform_name] = result
                 await self.store.save(result)
+                
                 status_icon = "OK" if result.status == ProbeStatus.OK else "FAIL"
                 log.debug(
                     "%s %s %.0fms [%s]",
@@ -206,7 +241,7 @@ class Prober:
                     result.ttft_ms, result.status.value
                 )
 
-            return self._results
+        return self._results
 
     async def start_loop(self) -> None:
         """Run probe loop forever at configured interval."""
